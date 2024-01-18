@@ -9,7 +9,5 @@ import (
 )
 
 var wireExtsDataSourceApiServerSet = wire.NewSet(
-	wire.Bind(new(APIServer), new(*TestDataAPIServer)),
 	NewTestDataAPIServer,
-	NewDataSourceAPIServer,
 )

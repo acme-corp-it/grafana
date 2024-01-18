@@ -4,8 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/grafana/grafana/pkg/services/accesscontrol/actest"
-
 	"github.com/grafana/grafana-plugin-sdk-go/backend"
 	common "github.com/grafana/grafana/pkg/apis/common/v0alpha1"
 	"github.com/grafana/grafana/pkg/plugins"
@@ -13,28 +11,13 @@ import (
 	testdatasource "github.com/grafana/grafana/pkg/tsdb/grafana-testdata-datasource"
 )
 
-func NewDataSourceAPIServer(s APIServer) (*DataSourceAPIBuilder, error) {
-	return NewDataSourceAPIBuilder(
-		s.PluginJSON(),
-		s.QuerierProvider(),
-		s.PluginContextProvider(),
-		&actest.FakeAccessControl{ExpectedEvaluate: true},
-	)
-}
-
-type APIServer interface {
-	QuerierProvider() QuerierProvider
-	PluginContextProvider() PluginContextProvider
-	PluginJSON() plugins.JSONData
-}
-
 type TestDataAPIServer struct {
 	querierProvider       QuerierProvider
 	pluginContextProvider PluginContextProvider
 	pluginJSON            plugins.JSONData
 }
 
-func NewTestDataAPIServer(group string) (*TestDataAPIServer, error) {
+func NewTestDataAPIServer(group string) (*DataSourceAPIBuilder, error) {
 	pluginID := "grafana-testdata-datasource"
 
 	if group != "testdata.datasource.grafana.app" {
@@ -48,7 +31,7 @@ func NewTestDataAPIServer(group string) (*TestDataAPIServer, error) {
 		return nil, err
 	}
 
-	_, pluginStore, dsService, dsCache, err := apiBuilderServices(cfg, pluginID)
+	accessControl, pluginStore, dsService, dsCache, err := apiBuilderServices(cfg, pluginID)
 	if err != nil {
 		return nil, err
 	}
@@ -62,11 +45,12 @@ func NewTestDataAPIServer(group string) (*TestDataAPIServer, error) {
 		return NewDefaultQuerier(ri, td.JSONData, testdatasource.ProvideService(), dsService, dsCache), nil
 	}
 
-	return &TestDataAPIServer{
-		querierProvider:       NewQuerierProvider(testsDataQuerierFactory),
-		pluginContextProvider: &TestDataPluginContextProvider{},
-		pluginJSON:            td.JSONData,
-	}, nil
+	return NewDataSourceAPIBuilder(
+		td.JSONData,
+		NewQuerierProvider(testsDataQuerierFactory),
+		&TestDataPluginContextProvider{},
+		accessControl,
+	)
 }
 
 func (b *TestDataAPIServer) QuerierProvider() QuerierProvider {
