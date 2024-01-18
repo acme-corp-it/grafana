@@ -121,6 +121,7 @@ debug.test
 /packaging/**/*.tar.gz.sha256
 pkg/cmd/grafana-server/__debug_bin
 pkg/services/quota/quotaimpl/storage/storage.json
+pkg/registry/apis/datasource/wireexts_enterprise.go
 
 # Ignore OSX indexing
 .DS_Store
