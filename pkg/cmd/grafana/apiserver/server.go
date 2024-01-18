@@ -58,7 +58,7 @@ func (o *APIServerOptions) loadAPIGroupBuilders(args []string) error {
 			}
 			o.builders = append(o.builders, featuretoggle.NewFeatureFlagAPIBuilder(features))
 		case "testdata.datasource.grafana.app":
-			ds, err := datasource.NewStandaloneDatasource(g)
+			ds, err := datasource.InitializeAPIServer(g)
 			if err != nil {
 				return err
 			}

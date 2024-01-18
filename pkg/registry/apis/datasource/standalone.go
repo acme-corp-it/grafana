@@ -4,20 +4,37 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/grafana/grafana-plugin-sdk-go/backend"
+	"github.com/grafana/grafana/pkg/services/accesscontrol/actest"
 
+	"github.com/grafana/grafana-plugin-sdk-go/backend"
 	common "github.com/grafana/grafana/pkg/apis/common/v0alpha1"
 	"github.com/grafana/grafana/pkg/plugins"
-	"github.com/grafana/grafana/pkg/services/accesscontrol/acimpl"
 	"github.com/grafana/grafana/pkg/setting"
 	testdatasource "github.com/grafana/grafana/pkg/tsdb/grafana-testdata-datasource"
 )
 
-// NewStandaloneDatasource is a helper function to create a new datasource API server for a group.
-// This currently has no dependencies and only works for testdata.  In future iterations
-// this will include here (or elsewhere) versions that can load config from HG api or
-// the remote SQL directly.
-func NewStandaloneDatasource(group string) (*DataSourceAPIBuilder, error) {
+func NewDataSourceAPIServer(s APIServer) (*DataSourceAPIBuilder, error) {
+	return NewDataSourceAPIBuilder(
+		s.PluginJSON(),
+		s.QuerierProvider(),
+		s.PluginContextProvider(),
+		&actest.FakeAccessControl{ExpectedEvaluate: true},
+	)
+}
+
+type APIServer interface {
+	QuerierProvider() QuerierProvider
+	PluginContextProvider() PluginContextProvider
+	PluginJSON() plugins.JSONData
+}
+
+type TestDataAPIServer struct {
+	querierProvider       QuerierProvider
+	pluginContextProvider PluginContextProvider
+	pluginJSON            plugins.JSONData
+}
+
+func NewTestDataAPIServer(group string) (*TestDataAPIServer, error) {
 	pluginID := "grafana-testdata-datasource"
 
 	if group != "testdata.datasource.grafana.app" {
@@ -45,12 +62,23 @@ func NewStandaloneDatasource(group string) (*DataSourceAPIBuilder, error) {
 		return NewDefaultQuerier(ri, td.JSONData, testdatasource.ProvideService(), dsService, dsCache), nil
 	}
 
-	return NewDataSourceAPIBuilder(
-		td.JSONData,
-		NewQuerierProvider(testsDataQuerierFactory),
-		&TestDataPluginContextProvider{},
-		acimpl.ProvideAccessControl(cfg),
-	)
+	return &TestDataAPIServer{
+		querierProvider:       NewQuerierProvider(testsDataQuerierFactory),
+		pluginContextProvider: &TestDataPluginContextProvider{},
+		pluginJSON:            td.JSONData,
+	}, nil
+}
+
+func (b *TestDataAPIServer) QuerierProvider() QuerierProvider {
+	return b.querierProvider
+}
+
+func (b *TestDataAPIServer) PluginContextProvider() PluginContextProvider {
+	return b.pluginContextProvider
+}
+
+func (b *TestDataAPIServer) PluginJSON() plugins.JSONData {
+	return b.pluginJSON
 }
 
 type TestDataPluginContextProvider struct{}
